@@ -96,7 +96,7 @@ def homepage_penyewa(username, password):
     print(f"{'SELAMAT DATANG DI EL NUSA TOUR':^70} \n {'RENTAL MOBIL TERPERCAYA ':^70}")
     print('='*70)
 
-    print(" [1]. LIHAT PROFIL \n [2]. SEWA MOBIL \n [3]. PEMBAYARAN \n\n [0]. KELUAR")
+    print(" [1]. LIHAT PROFIL \n [2]. SEWA MOBIL \n [3]. PEMBAYARAN \n [4]. PENGEMBALIAN \n\n [0]. KELUAR")
     print('='*70)
     opsi = (input("Pilih Opsi yang ingin digunakan: "))
     while(True):
@@ -106,6 +106,8 @@ def homepage_penyewa(username, password):
             sewa_mobil(username, password)
         elif opsi == '3':
             pembayaran(username, password)
+        elif opsi == '4':
+            pengembalian(username, password)
         elif opsi == '0':
             homepage_penyewa(username, password)
 
@@ -499,6 +501,8 @@ def pembayaran(username, password):
                             break
                 elif pilihan == 0:
                     click_enter_penyewa(username, password)
+                else:
+                    print("Kesalahan Input. Coba Lagi")
                     
         else:
             print("Transaksi Penyewaan tidak ditemukan.")
@@ -509,8 +513,114 @@ def pembayaran(username, password):
         cur.close()
         conn.close()
 
+def pengembalian (username, password):
+    clear_screen()
+    conn = connect_database()
+    if conn :
+
+        cur = conn.cursor()
+
+        try:
+            query = """
+            SELECT 
+                t.id_transaksi_penyewaan ,p.nama_penyewa, t.tanggal_penyewaan, t.tanggal_jatuh_tempo, m.nama_mobil, COALESCE(s.nama_sopir, 'Kosong'), slk.status_lepas_kunci,
+                sp.status_pembayaran
+                 
+            FROM 
+                transaksi_penyewaan t
+            JOIN 
+                mobil m ON m.id_mobil = t.id_mobil
+            JOIN 
+                penyewa p ON p.id_penyewa = t.id_penyewa
+            JOIN
+                status_pembayaran sp ON sp.id_status_pembayaran = t.id_status_pembayaran
+            JOIN
+                status_lepas_kunci slk ON slk.id_status_lepas_kunci = t.id_status_lepas_kunci
+            LEFT JOIN
+                sopir s ON s.id_sopir = t.id_sopir
+            WHERE p.username = %s and sp.id_status_pembayaran = 1
+            
+            """
+            cur.execute(query, (username, ))
+            pengembalian = cur.fetchall()
+
+            if pengembalian:
+                clear_screen()
+                print('='*130)
+                print(f"{'DAFTAR PENYEWAAN':^130}")
+                print('='*130)
+                print(f"{'ID Transkasi':<13}{'Nama Penyewa':<17}{'Tgl. Sewa':<13}{'Tgl. Jatuh Tempo':<18}{'Mobil':<15}{'Sopir':<15}{'Lepas Kunci':<15}{'Status Pembayaran':<18}")
+                print('-'*130)
+                for i in pengembalian:
+                    id_transaksi = i[0]
+                    nama_penyewa = i[1]
+                    tanggal_penyewaan = i[2].strftime('%Y-%m-%d')
+                    tanggal_jatuh_tempo = i[3].strftime('%Y-%m-%d')  # Format tanggal
+                    nama_mobil = i[4]
+                    nama_sopir = i[5] 
+                    status_lepas_kunci = i[6]
+                    status_pembayaran = i[7]
+
+                    print(f"{id_transaksi:<13}{nama_penyewa:<17}{tanggal_penyewaan:<13}{tanggal_jatuh_tempo:<18}{nama_mobil:<15}{nama_sopir:<15}{status_lepas_kunci:<15}{status_pembayaran:<18}")
+                print('='*130)
+
+            else:
+                print("Transaksi Penyewaan tidak ditemukan.")
+                click_enter_penyewa(username, password)
+
+            print("[1]. Kembalikan Mobil \n\n[0]. Kembali")
+            while True:
+                pilihan = int(input("Pilihan >"))
+                if pilihan == 1:
+                    while True:
+                        id_pengembalian = int(input("Masukkan ID Transaksi yang ingin dikembalikan: "))
+                        sekarang = str(datetime.now().strftime('%Y-%m-%d'))
+                        try:
+                            query ="""SELECT tp.id_transaksi_penyewaan 
+                            FROM transaksi_penyewaan tp
+                            join penyewa p on (p.id_penyewa = tp.id_penyewa)
+                            WHERE username= %s
+                            """
+                            cur.execute(query, (username, ))
+                            id_transaksi = cur.fetchone()[0]
+
+                            #DEFAULT PENGEMBALIAN
+                            denda = 0
+                            tanggal_pengembalian = sekarang
+                            id_status_pengembalian = 2
+
+                            if id_transaksi == id_pengembalian :
+
+                                query = """INSERT into pengembalian (tanggal_pengembalian, denda, id_transaksi_penyewaan, id_status_pengembalian) 
+                                values (%s,%s,%s,%s) 
+                                """
+                                cur.execute(query,(tanggal_pengembalian, denda, id_transaksi, id_status_pengembalian))
+                                conn.commit()
+                                print("Pengembalian Mobil Berhasil. Silahkan Tunggu Konfirmasi dari Admin.")
+                                click_enter_penyewa(username, password)
+                                break
+                            else :
+                                print("ID Transaksi salah / tidak ditemukan")
+
+                        except Exception as e:
+                            print(f"Terjadi kesalahan: {e}")
+                            conn.rollback()
+
+                elif pilihan == 0:
+                    click_enter_penyewa(username, password)
+                else:
+                    print("Kesalahan Input. Coba Lagi")
+                    click_enter_penyewa(username, password)
+        
+        except Exception as e:
+            print(f"Terjadi kesalahan : {e}")
+        finally:
+            cur.close()
+            conn.close()
 #==========================================================================================================================
 #====================ADMIN============================================================================================
+
+#JANGAN LUPA TUGAS ADMIN: MENGATUR TANGGAL JATUH TEMPO, MENGATUR KONFIRMASI PENGEMBALIAN, KONFIRMASI PEMBAYARAN (OPSIONAL)
 
 def click_enter_admin(username, password):
     print("\n")
@@ -553,7 +663,7 @@ def homepage_admin(username, password):
     print(f"{'SELAMAT DATANG ADMIN DI EL NUSA TOUR':^70} \n {'RENTAL MOBIL TERPERCAYA ':^70}")
     print('='*70)
 
-    print(" [1]. LIHAT PROFIL ADMIN \n [2]. DATA MOBIL \n [3]. DATA SOPIR \n [4]. PEMBAYARAN \n [5]. LIHAT TRANSAKSI \n [6]. LIHAT PENGEMBALIAN \n\n [0]. KELUAR")
+    print(" [1]. LIHAT PROFIL ADMIN \n [2]. DATA MOBIL \n [3]. DATA SOPIR \n [4]. PEMBAYARAN \n [5]. LIHAT TRANSAKSI \n [6]. KONFIRMASI PENGEMBALIAN \n\n [0]. KELUAR")
     print('='*70)
     opsi = (input("Pilih Opsi yang ingin digunakan: "))
     while(True):
@@ -563,6 +673,15 @@ def homepage_admin(username, password):
             data_mobil(username, password)
         elif opsi == '3':
             data_sopir(username, password)
+        elif opsi == '4':
+            pass
+            #data_pembayaran(username, password)
+        elif opsi == '5':
+            pass
+            #data_transaksi(username, password)
+        elif opsi == '6':
+            data_pengembalian(username, password)
+
 
 def profil_admin(username, password):
     conn = connect_database()
@@ -605,7 +724,7 @@ def data_mobil(username, password):
             lihat_mobil(username, password)
         elif opsi == '2':
             # pass
-            lihat_merk(username, password)
+            #lihat_merk(username, password)
             tambah_mobil(username, password)
         elif opsi == '3':
             pass
@@ -914,6 +1033,77 @@ def hapus_sopir(username, password):
         cur.close()
         conn.close()
 
+def data_pengembalian(username, password):
+    clear_screen()
+    conn = connect_database()
+    cur = conn.cursor()
+
+    try:
+        query = """
+        SELECT pb.id_pengembalian, pb.id_transaksi_penyewaan, pb.tanggal_pengembalian, tp.tanggal_jatuh_tempo, pb.denda, spb.status_pengembalian
+        FROM pengembalian pb JOIN status_pengembalian spb ON spb.id_status_pengembalian = pb.id_status_pengembalian
+        JOIN transaksi_penyewaan tp ON tp.id_transaksi_penyewaan = pb.id_transaksi_penyewaan
+           
+        """
+        cur.execute(query)
+        data_pengembalian = cur.fetchall()
+
+        if data_pengembalian:
+            clear_screen()
+            print('='*100)
+            print(f"{'DAFTAR PENGEMBALIAN':^100}")
+            print('='*100)
+            print(f"{'ID Pengembalian':<18}{'ID Transaksi':<15}{'Tanggal Pengembalian':<22}{'Tanggal Jatuh Tempo':<22}{'Denda':<15}{'Status Pengembalian':<15}")
+            print('-'*100)
+            for i in data_pengembalian:
+                id_pengembalian = i[0]
+                id_transaksi = i[1]
+                tanggal_kembali = i[2].strftime('%Y-%m-%d')
+                tanggal_jatuh_tempo = i[3].strftime('%Y-%m-%d')
+                denda = i[4]
+                status_pengembalian = i[5]
+                print(f"{id_pengembalian:<18}{id_transaksi:<15}{tanggal_kembali:<22}{tanggal_jatuh_tempo:<22}{denda:<15}{status_pengembalian:<15}")
+            print('='*100)
+
+            print("[1]. Konfirmasi Pengembalian \n[2]. Tambah Denda \n\n[0]. Keluar")
+            opsi = (input("Pilihan> "))
+            while(True):
+                if opsi == '1':
+                    while True:
+                        input_id_pengembalian = int(input("Masukkan ID Pengembalian: "))
+                        print("[1]. Sudah \n[2]. Belum")
+                        id_status_pengembalian = int(input("Masukkan ID Status Pengembalian (1/2): "))
+                        if id_status_pengembalian == 1 or id_status_pengembalian == 2:
+                            try:
+                                query ="""UPDATE pengembalian SET id_status_pengembalian = %s WHERE id_pengembalian = %s
+                                """
+                                cur.execute(query, (id_status_pengembalian, input_id_pengembalian))                            
+                                conn.commit()
+                                print("Konfirmasi Pengembalian Berhasil Disimpan")
+                                click_enter_admin(username, password)
+
+                            except Exception as e:
+                                print(f"Terjadi kesalahan: {e}")
+                                conn.rollback()
+                        else:
+                            print("Kesalahan Input. Coba Lagi")
+
+                elif opsi == '2':
+                    tambah_sopir(username, password)
+                
+                elif opsi == '0':
+                    click_enter_admin(username, password)
+                else:
+                    print("Kesalahan Input. Coba Lagi")
+        else:
+            print("Data Pengembalian tidak ditemukan.")
+            click_enter_admin(username, password)
+    except Exception as e:
+        print(f"Terjadi kesalahan: {e}")
+    finally:
+        cur.close()
+        conn.close()
+
 
 # def read_penyewa():
 #     conn = connect_database()
@@ -932,8 +1122,8 @@ def back_pilihan():
     print(kembali) 
     pilihan()
 
-pilihan()
+#pilihan()
 #read_penyewa()
 #register_penyewa()
-# login_penyewa()
-# login_admin()
+#login_penyewa()
+login_admin()
