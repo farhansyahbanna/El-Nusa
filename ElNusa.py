@@ -3,6 +3,7 @@ import os
 import sys
 from decimal import Decimal
 from datetime import datetime
+import re
 
 def connect_database():
     conn = psycopg2.connect(database='RentalMobil', user='postgres', password='farhan123', host='localhost', port='5432')
@@ -26,6 +27,7 @@ def pilihan():
     |          SILAHKAN REGISTER ATAU LOGIN TERLEBIH DAHULU                     |
     |          1. Register                                                      |
     |          2. Login                                                         |
+    |          3. Keluar                                                        |
     |                                                                           |
     |===========================================================================|
     '''
@@ -36,20 +38,91 @@ def pilihan():
             register_penyewa()
             
         elif inputan == "2":
+            login()
+
+        elif inputan == "3":
+            sys.exit()
+        else:
+            print("Input Tidak Valid. Silahkan Coba")
+
+def login():
+    clear_screen()
+    tampilan_login = '''
+    |===========================================================================|
+    |          PILIH JENIS LOGIN                                                |
+    |          1. Login Penyewa                                                 |
+    |          2. Login Admin                                                   |
+    |          3. Kembali                                                       |
+    |                                                                           |
+    |===========================================================================|
+    '''
+    print(tampilan_login)
+    while True:
+        jenis_login = input("Pilihan > ")
+        if jenis_login == "1":
             login_penyewa()
+            break
+        elif jenis_login == "2":
+            login_admin()
+            break
+        elif jenis_login == "3":
+            pilihan()
+        else:
+            print("Pilihan tidak valid. Silakan coba lagi.")
+
+def is_valid_username(username, cur):
+    # Memeriksa apakah username sudah ada di database
+    query = "SELECT COUNT(*) FROM penyewa WHERE username = %s"
+    cur.execute(query, (username,))
+    return cur.fetchone()[0] == 0
 
 def register_penyewa():
-
-    # Memasukkan data penyewa ke tabel `penyewa`
-    nama_penyewa = input("Masukkan nama lengkap: ")
-    username = input("Masukkan username: ")
-    password = input("Masukkan password: ")
-    no_telepon_penyewa = input("Masukkan No Telepon: ")
-    alamat_penyewa = input("Masukkan Alamat: ")
-    nik_ktp_penyewa= input("Masukkan NIK KTP: ")
-
     conn = connect_database()
     cur = conn.cursor()
+    # Memasukkan data penyewa ke tabel `penyewa`
+    while True:
+        nama_penyewa = input("Masukkan nama lengkap: ")
+        if re.match("^[A-Za-z ]+$", nama_penyewa):
+            break
+        else:
+            print("Nama lengkap hanya boleh berisi huruf dan spasi.")
+    
+    while True:
+        username = input("Masukkan username: ")
+        if username and is_valid_username(username, cur):
+            break
+        else:
+            print("Username tidak valid atau sudah digunakan. Silakan pilih username lain.")
+    
+    while True:
+        password = input("Masukkan password: ")
+        if len(password) >= 6:
+            break
+        else:
+            print("Password harus memiliki minimal 6 karakter.")
+    
+    while True:
+        no_telepon_penyewa = input("Masukkan No Telepon: ")
+        if re.match("^[0-9]{10,13}$", no_telepon_penyewa):
+            break
+        else:
+            print("No Telepon harus berupa angka dengan panjang 10-13 digit.")
+    
+    while True:
+        alamat_penyewa = input("Masukkan Alamat: ")
+        if alamat_penyewa:
+            break
+        else:
+            print("Alamat tidak boleh kosong.")
+    
+    while True:
+        nik_ktp_penyewa = input("Masukkan NIK KTP: ")
+        if re.match("^[0-9]{16}$", nik_ktp_penyewa):
+            break
+        else:
+            print("NIK KTP harus berupa angka dengan panjang tepat 16 digit.")
+
+    
     try:
         cur.execute(
             "INSERT INTO penyewa (nama_penyewa, username, password,no_telepon_penyewa, alamat_penyewa, nik_ktp_penyewa) VALUES (%s, %s, %s, %s, %s, %s)",
@@ -73,13 +146,13 @@ def login_penyewa():
 
     try:
         cur.execute("SELECT * FROM penyewa WHERE username = %s AND password = %s", (username, password))
-        penyewa = cur.fetchone()
+        penyewa = cur.fetchone()      
 
         if penyewa:
             print("Login berhasil!")
             print("Selamat datang, ", penyewa[1])
             click_enter_penyewa(username, password)
-            
+
         else:
             print("Login gagal. Username atau password salah.")
     except Exception as e:
@@ -109,9 +182,10 @@ def homepage_penyewa(username, password):
         elif opsi == '4':
             pengembalian(username, password)
         elif opsi == '0':
-            homepage_penyewa(username, password)
+            pilihan()
 
 def profil_penyewa(username, password):
+    clear_screen()
     conn = connect_database()
     cur = conn.cursor()
 
@@ -230,8 +304,10 @@ def sewa_mobil(username, password):
                 merk_mobil mm ON m.id_merk_mobil = mm.id_merk_mobil
             JOIN 
                 status_mobil sm ON m.id_status_mobil = sm.id_status_mobil
+            WHERE sm.id_status_mobil = 1
             ORDER BY 
                 m.id_mobil ASC
+           
             """
             cur.execute(query)
             mobil = cur.fetchall()
@@ -441,6 +517,7 @@ def pembayaran(username, password):
                                 print(f"Terjadi kesalahan: {e}")
                                 conn.rollback()
                             
+                            id_status_mobil = 2
                             id_status_pembayaran = 1
                             try:
                                 query = '''UPDATE transaksi_penyewaan SET id_jenis_pembayaran = %s, id_status_pembayaran = %s WHERE id_transaksi_penyewaan = %s
@@ -448,8 +525,11 @@ def pembayaran(username, password):
 
                                 query2 = '''UPDATE transfer_bank SET id_jenis_pembayaran = %s,  WHERE nomor_rekening = %s
                                 '''
+
+                                query3 = '''UPDATE mobil SET id_status_mobil = %s WHERE nama_mobil = %s'''
                                 cur.execute(query, (pilihan, id_status_pembayaran, id_transaksi))
                                 cur.execute(query2, (pilihan, no_rekening))
+                                cur.execute(query3, (id_status_mobil, nama_mobil))
                                 #id_jenis_pembayaran = cur.fetchone()[0]
                                 conn.commit()
                                 print("Pembayaran Berhasil ")
@@ -470,7 +550,7 @@ def pembayaran(username, password):
                         else:
                             try:
                                 query = '''INSERT INTO cash (nominal_tunai, kembalian)
-                                VALUES (%s, %s, %s, %s)
+                                VALUES (%s, %s)
                                 '''
                                 cur.execute(query, (nominal_tunai, kembalian))
                                 #id_jenis_pembayaran = cur.fetchone()[0]
@@ -480,7 +560,8 @@ def pembayaran(username, password):
                             except Exception as e:
                                 print(f"Terjadi kesalahan: {e}")
                                 conn.rollback()
-                            
+
+                            id_status_mobil = 2
                             id_status_pembayaran = 1
                             try:
                                 query = '''UPDATE transaksi_penyewaan SET id_jenis_pembayaran = %s, id_status_pembayaran = %s WHERE id_transaksi_penyewaan = %s
@@ -488,8 +569,10 @@ def pembayaran(username, password):
                                 
                                 query2 = '''UPDATE cash SET id_jenis_pembayaran = %s  WHERE nominal_tunai = %s
                                 '''
+                                query3 = '''UPDATE mobil SET id_status_mobil = %s WHERE nama_mobil = %s'''
                                 cur.execute(query, (pilihan, id_status_pembayaran, id_transaksi))
                                 cur.execute(query2, (pilihan, nominal_tunai))
+                                cur.execute(query3, (id_status_mobil, nama_mobil))
                                 #id_jenis_pembayaran = cur.fetchone()[0]
                                 conn.commit()
                                 print("Pembayaran Berhasil")
@@ -579,22 +662,22 @@ def pengembalian (username, password):
                             query ="""SELECT tp.id_transaksi_penyewaan 
                             FROM transaksi_penyewaan tp
                             join penyewa p on (p.id_penyewa = tp.id_penyewa)
-                            WHERE username= %s
+                            WHERE username= %s AND tp.id_transaksi_penyewaan = %s
                             """
-                            cur.execute(query, (username, ))
-                            id_transaksi = cur.fetchone()[0]
+                            cur.execute(query, (username, id_pengembalian ))
+                            id_transaksi = cur.fetchone()
 
                             #DEFAULT PENGEMBALIAN
                             denda = 0
                             tanggal_pengembalian = sekarang
                             id_status_pengembalian = 2
 
-                            if id_transaksi == id_pengembalian :
+                            if id_transaksi :
 
                                 query = """INSERT into pengembalian (tanggal_pengembalian, denda, id_transaksi_penyewaan, id_status_pengembalian) 
                                 values (%s,%s,%s,%s) 
                                 """
-                                cur.execute(query,(tanggal_pengembalian, denda, id_transaksi, id_status_pengembalian))
+                                cur.execute(query,(tanggal_pengembalian, denda, id_pengembalian, id_status_pengembalian))
                                 conn.commit()
                                 print("Pengembalian Mobil Berhasil. Silahkan Tunggu Konfirmasi dari Admin.")
                                 click_enter_penyewa(username, password)
@@ -678,6 +761,10 @@ def homepage_admin(username, password):
             data_transaksi(username, password)
         elif opsi == '6':
             data_pengembalian(username, password)
+        elif opsi == '0':
+            pilihan()
+        else:
+            print("Input Tidak Valid. Silahkan Coba Lagi")
 
 
 def profil_admin(username, password):
@@ -1260,7 +1347,7 @@ def data_transaksi(username, password):
                 print('='*120)
                 print(f"{'DATA TRANSAKSI':^120}")
                 print('='*120)
-                print(f"{'ID Transaksi':<15}{'Nama Penyewa':<15}{'Tanggal Penyewaan':<20}{'Waktu Sewa':<12}{'Mobil':<15}{'Sopir':<15}{'Status Bayar':<14}{'Jatuh Tempo':<12}{'Lepas Kunci':<13}")
+                print(f"{'ID Transaksi':<15}{'Nama Penyewa':<25}{'Tanggal Penyewaan':<20}{'Waktu Sewa':<12}{'Mobil':<15}{'Sopir':<15}{'Status Bayar':<14}{'Jatuh Tempo':<12}{'Lepas Kunci':<13}")
                 print('-'*120)
                 for i in atur_tempo:
                     id_transaksi = i[0]
@@ -1273,7 +1360,7 @@ def data_transaksi(username, password):
                     jatuh_tempo = i[7].strftime('%Y-%m-%d')
                     status_lepas_kunci = i[8]
 
-                    print(f"{id_transaksi:<15}{nama_penyewa:<15}{tanggal_penyewaan:<20}{waktu_sewa:<12}{nama_mobil:<15}{nama_sopir:<15}{status_bayar:<14}{jatuh_tempo:<12}{status_lepas_kunci:<13}")
+                    print(f"{id_transaksi:<15}{nama_penyewa:<25}{tanggal_penyewaan:<20}{waktu_sewa:<12}{nama_mobil:<15}{nama_sopir:<15}{status_bayar:<14}{jatuh_tempo:<12}{status_lepas_kunci:<13}")
                 print('='*120)
                 print("\n")
                 print("[1]. EDIT JATUH TEMPO \n[2]. KEMBALI")
@@ -1282,27 +1369,29 @@ def data_transaksi(username, password):
                     if pilihan == 1:
                         while True:
                             id_jatuh_tempo = int(input("Masukkan ID Transaksi yang mau diatur jatuh temponya: "))
-                            tanggal_jatuh_tempo = input("Masukkan tanggal penyewaan (YYYY-MM-DD): ")
+                            tanggal_jatuh_tempo = input("Masukkan tanggal jatuh tempo : (YYYY-MM-DD): ")
                             
                             try:
-                                tanggal_jatuh_tempo_dt = datetime.strptime(tanggal_jatuh_tempo, '%Y-%m-%d')
+                                tanggal_jatuh_tempo_dt = datetime.strptime(tanggal_jatuh_tempo, '%Y-%m-%d').date()
 
-                                query = f"""
+                                query = """
                                 SELECT id_transaksi_penyewaan
                                 FROM transaksi_penyewaan
-                                WHERE id_transaksi_penyewaan = {id_jatuh_tempo}
+                                WHERE id_transaksi_penyewaan = %s
                                 """
-                                cur.execute(query)
+                                cur.execute(query, (id_jatuh_tempo,))
                                 result = cur.fetchone()
                                 
                                 if result:
-                                    
-                                    query == f"""
+
+                                    tanggal_jatuh_tempo_str = tanggal_jatuh_tempo_dt.strftime('%Y-%m-%d')
+        
+                                    query = """
                                     UPDATE transaksi_penyewaan
-                                    SET tanggal_jatuh_tempo = '{tanggal_jatuh_tempo_dt}'
-                                    WHERE id_transaksi_penyewaan = {id_jatuh_tempo}                                 
+                                    SET tanggal_jatuh_tempo = %s
+                                    WHERE id_transaksi_penyewaan = %s                   
                                     """
-                                    cur.execute(query)
+                                    cur.execute(query, (tanggal_jatuh_tempo_str, id_jatuh_tempo,))
                                     conn.commit()
                                     print("Penggantian Tanggal Jatuh Tempo Berhasil Dilakukan.")
                                     click_enter_admin(username, password)
@@ -1322,7 +1411,9 @@ def data_transaksi(username, password):
                         print("Nomor yang anda inputkan salah. Coba Lagi")    
                         click_enter_admin(username, password)
             else:
-                print("Tidak ada transaksi yang ditemukan.")      
+                print("Tidak ada transaksi yang ditemukan.")
+                click_enter_admin(username,password)
+
         except Exception as e:
             print(f"Terjadi kesalahan : {e}")
         finally:
@@ -1339,7 +1430,7 @@ def data_pengembalian(username, password):
         SELECT pb.id_pengembalian, pb.id_transaksi_penyewaan, pb.tanggal_pengembalian, tp.tanggal_jatuh_tempo, pb.denda, spb.status_pengembalian
         FROM pengembalian pb JOIN status_pengembalian spb ON spb.id_status_pengembalian = pb.id_status_pengembalian
         JOIN transaksi_penyewaan tp ON tp.id_transaksi_penyewaan = pb.id_transaksi_penyewaan
-           
+
         """
         cur.execute(query)
         data_pengembalian = cur.fetchall()
@@ -1358,7 +1449,8 @@ def data_pengembalian(username, password):
                 tanggal_jatuh_tempo = i[3].strftime('%Y-%m-%d')
                 denda = i[4]
                 status_pengembalian = i[5]
-                print(f"{id_pengembalian:<18}{id_transaksi:<15}{tanggal_kembali:<22}{tanggal_jatuh_tempo:<22}Rp. {denda:<}{status_pengembalian:<15}")
+                
+                print(f"{id_pengembalian:<18}{id_transaksi:<15}{tanggal_kembali:<22}{tanggal_jatuh_tempo:<22}Rp. {denda:<15}{status_pengembalian:<15}")
             print('='*100)
 
             print("[1]. Konfirmasi Pengembalian \n[2]. Tambah Denda \n\n[0]. Keluar")
@@ -1369,11 +1461,39 @@ def data_pengembalian(username, password):
                         input_id_pengembalian = int(input("Masukkan ID Pengembalian: "))
                         print("[1]. Sudah \n[2]. Belum")
                         id_status_pengembalian = int(input("Masukkan ID Status Pengembalian (1/2): "))
-                        if id_status_pengembalian == 1 or id_status_pengembalian == 2:
+                        if id_status_pengembalian == 1:
                             try:
-                                query ="""UPDATE pengembalian SET id_status_pengembalian = %s WHERE id_pengembalian = %s
-                                """
-                                cur.execute(query, (id_status_pengembalian, input_id_pengembalian))                            
+                                id_status_mobil = 1
+                                query = """UPDATE pengembalian SET id_status_pengembalian = %s WHERE id_pengembalian = %s"""
+                                query2 = """UPDATE mobil SET id_status_mobil = %s WHERE id_mobil = %s"""
+                                
+                                cur.execute(query, (id_status_pengembalian, input_id_pengembalian))
+                                
+                                # Mengambil id_mobil berdasarkan input_id_pengembalian
+                                cur.execute("SELECT id_mobil FROM pengembalian pb JOIN transaksi_penyewaan tp ON tp.id_transaksi_penyewaan = pb.id_transaksi_penyewaan WHERE pb.id_pengembalian = %s", (input_id_pengembalian,))
+                                id_mobil = cur.fetchone()[0]
+                                
+                                cur.execute(query2, (id_status_mobil, id_mobil))
+                                conn.commit()
+                                print("Konfirmasi Pengembalian Berhasil Disimpan")
+                                click_enter_admin(username, password)
+
+                            except Exception as e:
+                                print(f"Terjadi kesalahan: {e}")
+                                conn.rollback()
+                        elif id_status_pengembalian == 2:
+                            try:
+                                id_status_mobil = 2
+                                query = """UPDATE pengembalian SET id_status_pengembalian = %s WHERE id_pengembalian = %s"""
+                                query2 = """UPDATE mobil SET id_status_mobil = %s WHERE id_mobil = %s"""
+                                
+                                cur.execute(query, (id_status_pengembalian, input_id_pengembalian))
+                                
+                                # Mengambil id_mobil berdasarkan input_id_pengembalian
+                                cur.execute("SELECT id_mobil FROM pengembalian pb JOIN transaksi_penyewaan tp ON tp.id_transaksi_penyewaan = pb.id_transaksi_penyewaan WHERE pb.id_pengembalian = %s", (input_id_pengembalian,))
+                                id_mobil = cur.fetchone()[0]
+                                
+                                cur.execute(query2, (id_status_mobil, id_mobil))
                                 conn.commit()
                                 print("Konfirmasi Pengembalian Berhasil Disimpan")
                                 click_enter_admin(username, password)
@@ -1417,25 +1537,4 @@ def data_pengembalian(username, password):
         conn.close()
 
 
-# def read_penyewa():
-#     conn = connect_database()
-#     cur = conn.cursor()    
-#     query = "SELECT * FROM penyewa"
-#     cur.execute(query)
-#     data = cur.fetchall()
-#     for i in data:
-#         print(i)
-#     cur.close()
-#     conn.close()
-
-def back_pilihan():
-    print("\n")
-    kembali = input("Tekan Enter untuk melanjutkan ke Menu...")
-    print(kembali) 
-    pilihan()
-
-#pilihan()
-#read_penyewa()
-#register_penyewa()
-#login_penyewa()
-login_admin()
+pilihan()
