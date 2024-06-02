@@ -598,7 +598,7 @@ def pengembalian (username, password):
                                 conn.commit()
                                 print("Pengembalian Mobil Berhasil. Silahkan Tunggu Konfirmasi dari Admin.")
                                 click_enter_penyewa(username, password)
-                                break
+                                
                             else :
                                 print("ID Transaksi salah / tidak ditemukan")
 
@@ -620,7 +620,6 @@ def pengembalian (username, password):
 #==========================================================================================================================
 #====================ADMIN============================================================================================
 
-#JANGAN LUPA TUGAS ADMIN: MENGATUR TANGGAL JATUH TEMPO, MENGATUR KONFIRMASI PENGEMBALIAN, KONFIRMASI PEMBAYARAN (OPSIONAL)
 
 def click_enter_admin(username, password):
     print("\n")
@@ -674,11 +673,9 @@ def homepage_admin(username, password):
         elif opsi == '3':
             data_sopir(username, password)
         elif opsi == '4':
-            pass
-            #data_pembayaran(username, password)
+            data_pembayaran(username, password)
         elif opsi == '5':
-            pass
-            #data_transaksi(username, password)
+            data_transaksi(username, password)
         elif opsi == '6':
             data_pengembalian(username, password)
 
@@ -716,20 +713,20 @@ def data_mobil(username, password):
     print(f"{'DATA MOBIL':^70}")
     print('='*70)
 
-    print(" [1]. LIHAT DATA MOBIL \n [2]. TAMBAH MOBIL \n [3]. EDIT DATA MOBIL \n [4]. HAPUS DATA MOBIL \n\n [0]. KELUAR")
+    print("[1]. LIHAT DATA MOBIL \n[2]. TAMBAH MOBIL \n[3]. EDIT DATA MOBIL \n[4]. HAPUS DATA MOBIL \n[5]. MERK MOBIL\n\n [0]. KELUAR")
     
     opsi = (input("Pilih Opsi yang ingin digunakan: "))
     while(True):
         if opsi == '1':
             lihat_mobil(username, password)
         elif opsi == '2':
-            # pass
-            #lihat_merk(username, password)
             tambah_mobil(username, password)
         elif opsi == '3':
-            pass
+            edit_mobil(username, password)
         elif opsi == '4':
-            pass
+            hapus_mobil(username, password)
+        elif opsi == '5':
+            data_merk_mobil(username, password)
         elif opsi == '0':
             click_enter_admin(username, password)
 
@@ -810,49 +807,214 @@ def tambah_mobil(username, password):
         conn.close()
 
 def edit_mobil(username, password):
-    conn = connect_database()
-    cur = conn.cursor()
-
-    try:
-        query = """
-            "SELECT id_mobil, no_polisi_mobil, nama_mobil, harga_sewa_mobil, tahun_mobil, kapasitas_penumpang, keterangan, id_status_mobil, id_merk_mobil FROM mobil") VA
-            """
-    except Exception as e:
-        print(f"Terjadi kesalahan: {e}")
-    finally: 
-        pass
-
-def hapus_mobil(username, password):
-    pass
-def lihat_merk(username, password):
     clear_screen()
     conn = connect_database()
     cur = conn.cursor()
 
     try:
-        cur.execute("SELECT * FROM merk_mobil")
-        merk_mobil = cur.fetchall()
+        query = """
+        SELECT 
+            m.id_mobil, m.no_polisi_mobil, m.nama_mobil, m.harga_sewa_mobil, m.tahun_mobil, 
+            m.kapasitas_penumpang, COALESCE(m.keterangan, ''), mm.nama_merk_mobil, sm.status_mobil 
+        FROM 
+            mobil m
+        JOIN 
+            merk_mobil mm ON m.id_merk_mobil = mm.id_merk_mobil
+        JOIN 
+            status_mobil sm ON m.id_status_mobil = sm.id_status_mobil
+        ORDER BY m.id_mobil ASC
+        """
+        cur.execute(query)
+        mobil = cur.fetchall()
 
-        if merk_mobil:
+        if mobil:
             clear_screen()
-            print('='*70)
-            print(f"{'MERK MOBIL':^70}")
-            print('='*70)
-            print(f"{'ID Merk':<15}{'Merk Mobil':<30}")
-            print('-'*70)
-            for i in merk_mobil:
-                print(f"{i[0]:<15}{i[1]:<30}")
-            print('='*70)
+            print('='*120)
+            print(f"{'DAFTAR MOBIL':^120}")
+            print('='*120)
+            print(f"{'ID Mobil':<10}{'No Polisi':<15}{'Nama Mobil':<20}{'Harga Sewa':<15}{'Tahun Produksi':<15}{'Kapasitas':<10}{'Keterangan':<12}{'Merk Mobil':<15}{'Status':<10}")
+            print('-'*120)
+            for i in mobil:
+                print(f"{i[0]:<10}{i[1]:<15}{i[2]:<20}{i[3]:<15}{i[4]:<15}{i[5]:<10}{i[6]:<12}{i[7]:<15}{i[8]:<10}")
+            print('='*120)
 
-            click_enter_admin(username, password)
+            id_mobil = int(input("Masukkan ID Mobil yang diedit: "))
+            no_polisi = input("Masukkan No. Polisi Mobil: ")
+            clear_screen()
+            cur.execute("SELECT * FROM merk_mobil ORDER BY id_merk_mobil")
+            merk_mobil = cur.fetchall()
+            if merk_mobil:
+                print('='*30)
+                print(f"{'DATA MERK MOBIL':^30}")
+                print('='*30)
+                print(f"{'ID Merk Mobil':<15}{'Merk Mobil':<15}")
+                print('-'*30)
+                for i in merk_mobil:
+                    print(f"{i[0]:<15}{i[1]:<15}")
+                print('='*30)
+
+
+            id_merk = int(input("Masukkan ID Merk: "))
+            nama_mobil = input("Masukkan nama Sopir: ")
+            harga_sewa_mobil = Decimal(input("Masukkan Harga Sewa / Hari: Rp.  "))
+            tahun_mobil = int(input("Masukkan Tahun Produksi Mobil: "))
+            kapasitas = int(input("Masukkan Kapasitas Penumpang: "))
+            keterangan = input("Masukkan Keterangan Tambahan: ")
+            clear_screen()
+            cur.execute("SELECT * FROM merk_mobil ORDER BY id_merk_mobil")
+            status_mobil = cur.fetchall()
+            if status_mobil:
+                print('='*30)
+                print(f"{'STATUS MOBIL':^30}")
+                print('='*30)
+                print(f"{'ID Status':<15}{'Status Mobil':<15}")
+                print('-'*30)
+                for i in status_mobil:
+                    print(f"{i[0]:<15}{i[1]:<315}")
+                print('='*30)
+            
+            id_status = int(input("Masukkan ID Status: "))
+
+            try:
+                query_update = '''
+                UPDATE mobil SET no_polisi_mobil = %s, nama_mobil = %s, harga_sewa_mobil = %s,
+                tahun_mobil = %s, kapasitas_penumpang = %s, keterangan = %s, id_status_mobil = %s,
+                id_merk_mobil = %s WHERE id_mobil = %s
+                
+                '''
+                data = (no_polisi, nama_mobil, harga_sewa_mobil, tahun_mobil, kapasitas, keterangan, id_status, id_merk, id_mobil)
+                cur.execute(query_update, data)
+                conn.commit()
+                print("Data Mobil Berhasil Diedit")
+                click_enter_admin(username, password)
+            except:
+                print(f"Terjadi kesalahan: {e}")
+                conn.rollback()
+      
         else:
-            print("Merk Mobil tidak ditemukan.")
+            print("Mobil tidak ditemukan.")    
+        
+    except Exception as e:
+        print(f"Terjadi kesalahan: {e}")
+    finally:
+        cur.close()
+        conn.close()
+
+def hapus_mobil(username, password):
+    clear_screen()
+    conn = connect_database()
+    cur = conn.cursor()
+
+    try:
+        query = """
+        SELECT 
+            m.id_mobil, m.no_polisi_mobil, m.nama_mobil, m.harga_sewa_mobil, m.tahun_mobil, 
+            m.kapasitas_penumpang, COALESCE(m.keterangan, ''), mm.nama_merk_mobil, sm.status_mobil 
+        FROM 
+            mobil m
+        JOIN 
+            merk_mobil mm ON m.id_merk_mobil = mm.id_merk_mobil
+        JOIN 
+            status_mobil sm ON m.id_status_mobil = sm.id_status_mobil
+        ORDER BY m.id_mobil ASC
+        """
+        cur.execute(query)
+        mobil = cur.fetchall()
+
+        if mobil:
+            clear_screen()
+            print('='*120)
+            print(f"{'DAFTAR MOBIL':^120}")
+            print('='*120)
+            print(f"{'ID Mobil':<10}{'No Polisi':<15}{'Nama Mobil':<20}{'Harga Sewa':<15}{'Tahun Produksi':<15}{'Kapasitas':<10}{'Keterangan':<12}{'Merk Mobil':<15}{'Status':<10}")
+            print('-'*120)
+            for i in mobil:
+                print(f"{i[0]:<10}{i[1]:<15}{i[2]:<20}{i[3]:<15}{i[4]:<15}{i[5]:<10}{i[6]:<12}{i[7]:<15}{i[8]:<10}")
+            print('='*120)
+
+            id_mobil = int(input("Masukkan ID Mobil yang ingin dihapus: "))
+            try:
+                cur.execute("DELETE FROM mobil WHERE id_mobil = %s", (id_mobil,))
+                print("Data Mobil Berhasil Dihapus")
+                click_enter_admin(username, password)
+            except:
+                print(f"Terjadi kesalahan: {e}")
+                conn.rollback()
+      
+        else:
+            print("Mobil tidak ditemukan.")
+            click_enter_admin(username, password)    
+        
+    except Exception as e:
+        print(f"Terjadi kesalahan: {e}")
+    finally:
+        cur.close()
+        conn.close()
+
+def data_merk_mobil(username, password):
+    clear_screen()
+    conn = connect_database()
+    cur = conn.cursor()
+
+    try:
+        cur.execute("SELECT * FROM merk_mobil ORDER BY id_merk_mobil")
+        merk_mobil = cur.fetchall()
+        if merk_mobil:
+            print('='*30)
+            print(f"{'DATA MERK MOBIL':^30}")
+            print('='*30)
+            print(f"{'ID Merk Mobil':<15}{'Merk Mobil':<15}")
+            print('-'*30)
+            for i in merk_mobil:
+                print(f"{i[0]:<15}{i[1]:<15}")
+            print('='*30)
+
+            print("[1]. Tambah Merk \n[2]. Edit Merk \n\n[0]. Keluar")
+            while True:
+                pilihan = int(input("Pilihan> "))
+                if pilihan == 1:
+                    nama_merk = input("Masukkan Nama Merk Mobil: ")
+
+                    try:
+                        cur.execute("INSERT INTO merk_mobil (nama_merk_mobil) VALUES(%s)", (nama_merk,))
+                        conn.commit()
+                        print("Nama Merk Mobil Berhasil Ditambahkan")
+                        click_enter_admin(username, password)
+                        
+                    except Exception as e:
+                        print(f"Terjadi kesalahan: {e}")
+                        conn.rollback()
+                elif pilihan == 2:
+                    id_merk = int(input("Masukkan ID Merk Mobil: "))
+                    edit_merk = input("Masukkan Nama Merk Mobil Baru: ")
+
+                    try:
+                        cur.execute(
+                            "INSERT INTO merk_mobil (nama_merk_mobil) VALUES (%s) WHERE id_merk_mobil = %s",
+                            (edit_merk, id_merk)
+                        )
+                        conn.commit()
+                        print("Merk Mobil Berhasil di Edit.")
+                        click_enter_admin(username, password)
+
+                    except  Exception as e:
+                        print(f"Terjadi kesalahan: {e}")
+                        conn.rollback()
+                    
+                elif pilihan == 0:
+                    data_mobil(username, password)
+                else:
+                    print("Kesalahan Input Coba Lagi")
+
+        else:
+            print("Mobil tidak ditemukan.")
             click_enter_admin(username, password)
     except Exception as e:
         print(f"Terjadi kesalahan: {e}")
     finally:
         cur.close()
         conn.close()
+
 
 #DATA SOPIR ================================================================================================================
 def data_sopir(username, password):
@@ -1011,7 +1173,7 @@ def hapus_sopir(username, password):
 
             try:
                 cur.execute(
-                    f"DELETE FROM sopir WHERE id_sopir = {id_sopir}"
+                    "DELETE FROM sopir WHERE id_sopir = %s", (id_sopir,)
                 )
                 conn.commit()
                 print("Data Sopir berhasil dihapus.")
@@ -1032,6 +1194,140 @@ def hapus_sopir(username, password):
     finally:
         cur.close()
         conn.close()
+
+def data_pembayaran(username, password):
+    conn = connect_database()
+    cur = conn.cursor()
+
+    try:
+        cur.execute("SELECT * FROM jenis_pembayaran")
+        jenis_pembayaran = cur.fetchall()
+
+        if jenis_pembayaran:
+            clear_screen()
+            print('='*40)
+            print(f"{'DAFTAR MOBIL':^40}")
+            print('='*40)
+            print(f"{'ID Jenis Pembayaran':<20}{'Jenis Pembayaran':<15}")
+            print('-'*40)
+            for i in jenis_pembayaran:
+                print(f"{i[0]:<20}{i[1]:<15}")
+            print('='*40)
+
+            click_enter_admin(username, password)
+
+        else:
+            print("Jenis Pembayaran Tidak Ditemukan.")
+            click_enter_admin(username, password)
+    except Exception as e:
+        print(f"Terjadi kesalahan: {e}")
+    finally:
+        cur.close()
+        conn.close()
+
+def data_transaksi(username, password):
+    clear_screen()
+    conn = connect_database()
+
+    if conn:
+        cur = conn.cursor()
+
+        try:
+            query = """
+            SELECT 
+             t.id_transaksi_penyewaan ,p.nama_penyewa, t.tanggal_penyewaan, t.waktu_sewa, m.nama_mobil, COALESCE(s.nama_sopir, 'Kosong'), 
+             sp.status_pembayaran, t.tanggal_jatuh_tempo, slk.status_lepas_kunci
+        
+            FROM 
+                transaksi_penyewaan t
+            JOIN 
+                mobil m ON m.id_mobil = t.id_mobil
+            JOIN 
+                penyewa p ON p.id_penyewa = t.id_penyewa
+            JOIN
+                status_pembayaran sp ON sp.id_status_pembayaran = t.id_status_pembayaran
+            JOIN
+                status_lepas_kunci slk ON slk.id_status_lepas_kunci = t.id_status_lepas_kunci
+            LEFT JOIN
+                sopir s ON s.id_sopir = t.id_sopir
+            WHERE sp.id_status_pembayaran = 1
+            """
+            cur.execute(query)
+            atur_tempo = cur.fetchall()
+
+            if atur_tempo:
+                clear_screen()
+                print('='*120)
+                print(f"{'DATA TRANSAKSI':^120}")
+                print('='*120)
+                print(f"{'ID Transaksi':<15}{'Nama Penyewa':<15}{'Tanggal Penyewaan':<20}{'Waktu Sewa':<12}{'Mobil':<15}{'Sopir':<15}{'Status Bayar':<14}{'Jatuh Tempo':<12}{'Lepas Kunci':<13}")
+                print('-'*120)
+                for i in atur_tempo:
+                    id_transaksi = i[0]
+                    nama_penyewa = i[1]
+                    tanggal_penyewaan = i[2].strftime('%Y-%m-%d')
+                    waktu_sewa = i[3]
+                    nama_mobil = i[4]
+                    nama_sopir = i[5]
+                    status_bayar = i[6]
+                    jatuh_tempo = i[7].strftime('%Y-%m-%d')
+                    status_lepas_kunci = i[8]
+
+                    print(f"{id_transaksi:<15}{nama_penyewa:<15}{tanggal_penyewaan:<20}{waktu_sewa:<12}{nama_mobil:<15}{nama_sopir:<15}{status_bayar:<14}{jatuh_tempo:<12}{status_lepas_kunci:<13}")
+                print('='*120)
+                print("\n")
+                print("[1]. EDIT JATUH TEMPO \n[2]. KEMBALI")
+                while True:
+                    pilihan = int(input("Pilihan >"))
+                    if pilihan == 1:
+                        while True:
+                            id_jatuh_tempo = int(input("Masukkan ID Transaksi yang mau diatur jatuh temponya: "))
+                            tanggal_jatuh_tempo = input("Masukkan tanggal penyewaan (YYYY-MM-DD): ")
+                            
+                            try:
+                                tanggal_jatuh_tempo_dt = datetime.strptime(tanggal_jatuh_tempo, '%Y-%m-%d')
+
+                                query = f"""
+                                SELECT id_transaksi_penyewaan
+                                FROM transaksi_penyewaan
+                                WHERE id_transaksi_penyewaan = {id_jatuh_tempo}
+                                """
+                                cur.execute(query)
+                                result = cur.fetchone()
+                                
+                                if result:
+                                    
+                                    query == f"""
+                                    UPDATE transaksi_penyewaan
+                                    SET tanggal_jatuh_tempo = '{tanggal_jatuh_tempo_dt}'
+                                    WHERE id_transaksi_penyewaan = {id_jatuh_tempo}                                 
+                                    """
+                                    cur.execute(query)
+                                    conn.commit()
+                                    print("Penggantian Tanggal Jatuh Tempo Berhasil Dilakukan.")
+                                    click_enter_admin(username, password)
+                                    
+                                else:
+                                    print("ID Transaksi salah atau tidak ditemukan")
+                            except ValueError:
+                                print("Format tanggal salah, Gunakan Format YYYY-MM-DD.")
+                                
+                            except Exception as e:
+                                print(f"Terjadi kesalahan : {e}")
+                                conn.rollback()
+
+                    elif pilihan == 2:
+                        click_enter_admin(username,password)
+                    else:
+                        print("Nomor yang anda inputkan salah. Coba Lagi")    
+                        click_enter_admin(username, password)
+            else:
+                print("Tidak ada transaksi yang ditemukan.")      
+        except Exception as e:
+            print(f"Terjadi kesalahan : {e}")
+        finally:
+            cur.close()
+            conn.close()
 
 def data_pengembalian(username, password):
     clear_screen()
@@ -1062,7 +1358,7 @@ def data_pengembalian(username, password):
                 tanggal_jatuh_tempo = i[3].strftime('%Y-%m-%d')
                 denda = i[4]
                 status_pengembalian = i[5]
-                print(f"{id_pengembalian:<18}{id_transaksi:<15}{tanggal_kembali:<22}{tanggal_jatuh_tempo:<22}{denda:<15}{status_pengembalian:<15}")
+                print(f"{id_pengembalian:<18}{id_transaksi:<15}{tanggal_kembali:<22}{tanggal_jatuh_tempo:<22}Rp. {denda:<}{status_pengembalian:<15}")
             print('='*100)
 
             print("[1]. Konfirmasi Pengembalian \n[2]. Tambah Denda \n\n[0]. Keluar")
@@ -1089,7 +1385,23 @@ def data_pengembalian(username, password):
                             print("Kesalahan Input. Coba Lagi")
 
                 elif opsi == '2':
-                    tambah_sopir(username, password)
+                    while True:
+                        input_id_pengembalian = int(input("Masukkan ID Pengembalian: "))
+                        
+                        denda = int(input("Masukkan Nominal Denda: "))
+                        
+                        try:
+                            query ="""UPDATE pengembalian SET denda = %s WHERE id_pengembalian = %s
+                            """
+                            cur.execute(query, (denda, input_id_pengembalian))                            
+                            conn.commit()
+                            print("Input Denda Berhasil Ditambahkan")
+                            click_enter_admin(username, password)
+
+                        except Exception as e:
+                            print(f"Terjadi kesalahan: {e}")
+                            conn.rollback()
+
                 
                 elif opsi == '0':
                     click_enter_admin(username, password)
